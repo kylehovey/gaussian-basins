@@ -1,54 +1,54 @@
 from PIL import Image as Img
-from cmath import sin, cos, tan
+from cmath import sin, cos, tan, exp
 from math import floor
+from tqdm import tqdm
 
-def is_gaussian_integer(z, epsilon):
-    return abs(z.real - round(z.real)) < epsilon and abs(z.imag - round(z.imag)) < epsilon
+# Color Scheme
+colors = [
+    (239, 71, 111),
+    (255, 209, 102),
+    (17, 138, 178),
+    (6, 214, 160),
+    (7, 59, 76),
+]
 
-def grid_sample(width, samples):
-    out = []
-    radius = int(round(samples / 2))
-    ds = width / float(samples)
-    for a in range(-radius, radius):
-        for b in range(-radius, radius):
-            out.append(a*ds + b*1j*ds)
-    return out
-
-def oddities(samples, transform, epsilon = 1e-10):
-    def predicate(z):
-        try:
-            out = transform(z)
-
-            return is_gaussian_integer(out, epsilon)
-        except:
-            return False
-
-    return filter(predicate, samples)
+def is_gaussian_integer(z, epsilon = 1e-20):
+    return (
+        abs(z.real - round(z.real)) < epsilon and
+        abs(z.imag - round(z.imag)) < epsilon
+    )
 
 if __name__ == '__main__':
+    transform = lambda z: tan(cos(sin(z)))
+
     # In pixels
-    imageWidth, imageHeight = 144, 90
+    imageWidth, imageHeight = 1440, 900
     image = Img.new("RGB", (imageWidth, imageHeight))
 
-    # In pixels per flax
-    granularity = 1
-    # In flax
-    width, height = imageWidth/granularity, imageHeight/granularity
+    granularity = 40 # In pixels per flax
+    resolution = 1/float(granularity) # in flax per pixel
 
-    samples = grid_sample(max(width, height), max(imageWidth, imageHeight))
+    with tqdm(total=imageWidth*imageHeight) as pbar:
+        for u in range(imageWidth):
+            for v in range(imageHeight):
+                real_part = (u - imageWidth*0.5)*resolution
+                imag_part = (v - imageHeight*0.5)*resolution
 
-    # @param dim - in flax
-    # @param offset - in pixels
-    # @return - in pixels
-    def to_image_coord(dim, offset):
-        return int(round(dim*granularity + offset/2))
+                try:
+                    # This could be "infinite", thus the try/except
+                    result = transform(real_part + imag_part*1j)
 
-    for sample in oddities(samples, lambda z: tan(cos(sin(z)))):
-        x = to_image_coord(sample.real, imageWidth)
-        y = to_image_coord(sample.imag, imageHeight)
-        coord = (x, y)
+                    if is_gaussian_integer(result, 0):
+                        image.putpixel((u, v), colors[4])
+                    elif is_gaussian_integer(result, 1e-100):
+                        image.putpixel((u, v), colors[3])
+                    elif is_gaussian_integer(result, 1e-10):
+                        image.putpixel((u, v), colors[2])
+                    elif is_gaussian_integer(result, 1e-1):
+                        image.putpixel((u, v), colors[1])
+                except:
+                    image.putpixel((u, v), colors[0])
 
-        if 0 <= x < imageWidth and 0 <= y < imageHeight:
-            image.putpixel(coord, (93, 188, 210))
+                pbar.update(1)
 
     image.show()
