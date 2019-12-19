@@ -12,6 +12,17 @@ colors = [
     (7, 59, 76),
 ]
 
+def grid_sample(width, samples):
+    out = []
+    radius = int(round(samples/2))
+    ds = width / float(samples)
+
+    for a in range(-radius, radius + 1):
+        for b in range(-radius, radius + 1):
+            out.append(a*ds + b*1j*ds)
+
+    return out
+
 def is_gaussian_integer(z, epsilon = 1e-20):
     return (
         abs(z.real - round(z.real)) < epsilon and
@@ -19,13 +30,28 @@ def is_gaussian_integer(z, epsilon = 1e-20):
     )
 
 if __name__ == '__main__':
-    transform = lambda z: tan(cos(sin(z)))
+    #transform = lambda z: tan(cos(sin(z)))
+    #imageWidth, imageHeight = 1440, 900
+    #granularity = 100 # In pixels per flax
+
+    #transform = lambda z: tan(cos(sin(tan(z))))
+    #imageWidth, imageHeight = 1440, 900
+    #granularity = 250 # In pixels per flax
+
+    poles = grid_sample(5, 100)
+    print poles
+    def transform(z):
+        return reduce(
+            lambda acc, p: acc + 1.0/(z - p),
+            poles,
+            0,
+        )
+    imageWidth, imageHeight = 1000, 1000
+    granularity = 100 # In pixels per flax
 
     # In pixels
-    imageWidth, imageHeight = 1440, 900
     image = Img.new("RGB", (imageWidth, imageHeight))
 
-    granularity = 40 # In pixels per flax
     resolution = 1/float(granularity) # in flax per pixel
 
     with tqdm(total=imageWidth*imageHeight) as pbar:
